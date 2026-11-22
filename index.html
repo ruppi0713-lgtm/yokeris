@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ヨケリス｜よっけゲームオーバー演出つき</title>
 <style>
-  body{font-family:sans-serif;background:#171008;color:#fff;text-align:center;margin:0;padding:16px}
+  html,body{overscroll-behavior:none}
+  body{font-family:sans-serif;background:#171008;color:#fff;text-align:center;margin:0;padding:16px;touch-action:none;-webkit-user-select:none;user-select:none}
+  canvas{touch-action:none}
   canvas{background:#211910;border:4px solid #111;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
   button{background:#f59e0b;color:#111;border:none;padding:10px 22px;border-radius:999px;font-weight:bold;cursor:pointer;font-size:15px}
   .pad{display:grid;grid-template-columns:repeat(4,70px);gap:6px;justify-content:center;margin-top:10px}
@@ -188,14 +190,21 @@ function gameOver(){
 function startGame(){board=empty();score=0;lines=0;level=baseLevel=parseInt(document.getElementById('setLevel').value||'1');dropMs=Math.max(120,800-(level-1)*70);running=true;document.getElementById('titleBgm').pause();playBgm();document.getElementById('over').style.display='none';document.getElementById('opening').style.display='none';const sv=document.getElementById('stageVideo');if(sv)sv.pause();document.getElementById('msg').textContent='積みすぎると、よっけがトイレに…';upd();spawn();draw();restart()}
 document.getElementById('start').onclick=startGame;
 document.getElementById('opStart').onclick=startGame;
-(function(){const v=document.getElementById('stageVideo'),gate=document.getElementById('opGate'),skip=document.getElementById('opSkip'),menu=document.getElementById('menuPanel'),dim=document.getElementById('stageDim');const bgList=['yokke-title-bg.mp4','yokke-title-bg3.mp4','yokke-title-bg4.mp4'];let bgIdx=0,menuMode=false;function toMenu(){skip.style.display='none';menuMode=true;v.muted=true;v.loop=false;v.style.objectFit='contain';bgIdx=0;v.src=bgList[0];v.currentTime=0;v.play().catch(()=>{});dim.style.display='block';menu.style.display='block'}v.onended=()=>{if(menuMode){bgIdx=(bgIdx+1)%bgList.length;v.src=bgList[bgIdx];v.play().catch(()=>{})}else toMenu()};skip.onclick=toMenu;gate.onclick=()=>{gate.style.display='none';skip.style.display='block';const tb=document.getElementById('titleBgm');applyVol();if(document.getElementById('setBgm').checked)tb.play().catch(()=>{});v.muted=false;v.currentTime=0;v.play().catch(()=>{})}})();
+(function(){const v=document.getElementById('stageVideo'),gate=document.getElementById('opGate'),skip=document.getElementById('opSkip'),menu=document.getElementById('menuPanel'),dim=document.getElementById('stageDim');const bgList=['yokke-title-bg.mp4','yokke-title-bg3.mp4','yokke-title-bg4.mp4'];let bgIdx=0,menuMode=false;function toMenu(){skip.style.display='none';menuMode=true;v.muted=true;v.loop=false;v.style.objectFit='contain';bgIdx=0;v.src=bgList[0];v.currentTime=0;v.play().catch(()=>{});dim.style.display='block';menu.style.display='block'}v.onended=()=>{if(menuMode){bgIdx=(bgIdx+1)%bgList.length;v.src=bgList[bgIdx];v.play().catch(()=>{})}else toMenu()};skip.onclick=toMenu;gate.onclick=()=>{gate.style.display='none';skip.style.display='block';const tb=document.getElementById('titleBgm');applyVol();if(document.getElementById('setBgm').checked)tb.play().catch(()=>{});v.muted=false;v.currentTime=0;v.load();v.play().catch(()=>{v.muted=true;v.play().catch(()=>{})})}})();
 document.getElementById('opHow').onclick=()=>{document.getElementById('howPanel').style.display='block';document.getElementById('setPanel').style.display='none'};
 document.getElementById('opSet').onclick=()=>{document.getElementById('setPanel').style.display='block';document.getElementById('howPanel').style.display='none'};
 document.getElementById('setBack').onclick=()=>{document.getElementById('setPanel').style.display='none'};
 document.getElementById('again').onclick=startGame;
 function move(k){if(!running)return;if(k==='left'&&!hit(cur,-1,0))cur.x--;if(k==='right'&&!hit(cur,1,0))cur.x++;if(k==='down')step();if(k==='rot'){const nm=cur.m[0].map((_,i)=>cur.m.map(r=>r[i]).reverse());if(!hit(cur,0,0,nm))cur.m=nm}draw()}
 document.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>move(b.dataset.k));
-document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')move('left');if(e.key==='ArrowRight')move('right');if(e.key==='ArrowDown')move('down');if(e.key==='ArrowUp'||e.key===' ')move('rot')});
+document.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowDown','ArrowUp',' '].includes(e.key)){e.preventDefault();if(e.key==='ArrowLeft')move('left');if(e.key==='ArrowRight')move('right');if(e.key==='ArrowDown')move('down');if(e.key==='ArrowUp'||e.key===' ')move('rot')}});
+// スワイプ操作：画面がスクロール・揺れしないよう固定し、スワイプでブロックを動かす
+(function(){let sx=0,sy=0,lx=0;const el=document.getElementById('cv');
+el.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];sx=lx=t.clientX;sy=t.clientY},{passive:false});
+el.addEventListener('touchmove',e=>{e.preventDefault();if(!running)return;const t=e.touches[0];const dx=t.clientX-lx;if(dx>24){move('right');lx=t.clientX}else if(dx<-24){move('left');lx=t.clientX}if(t.clientY-sy>90){move('down');sy=t.clientY}},{passive:false});
+el.addEventListener('touchend',e=>{e.preventDefault();const t=e.changedTouches[0];if(Math.abs(t.clientX-sx)<12&&Math.abs(t.clientY-sy)<12)move('rot')},{passive:false});
+document.addEventListener('touchmove',e=>{if(running)e.preventDefault()},{passive:false});
+document.addEventListener('gesturestart',e=>e.preventDefault());})();
 board=empty();draw();
 </script>
 </body>
