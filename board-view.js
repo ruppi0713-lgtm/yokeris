@@ -1,5 +1,6 @@
-function createBoardView(canvas, onAssetsReady) {
+function createBoardView(canvas, preview, onAssetsReady) {
   const ctx = canvas.getContext('2d');
+  const previewContext = preview.getContext('2d');
   const size = 30;
   const width = 300;
   const height = 600;
@@ -14,6 +15,7 @@ function createBoardView(canvas, onAssetsReady) {
     ['#e8a0d4', '#904a78', '#411e3c'],
   ];
   ctx.scale(scale, scale);
+  previewContext.scale(scale, scale);
 
   function surface(w, h) {
     const image = document.createElement('canvas');
@@ -102,17 +104,31 @@ function createBoardView(canvas, onAssetsReady) {
   });
   drinks.src = 'drink-tiles.png';
 
-  return function drawBoard(board, current, flash) {
+  function paintTile(context, x, y, type) {
+    context.drawImage(tiles[type - 1], x, y, size, size);
+  }
+
+  function paintPiece(context, piece, left, top) {
+    piece.m.forEach((row, y) => row.forEach((cell, x) => {
+      if (cell) paintTile(context, left + x * size, top + y * size, piece.t);
+    }));
+  }
+
+  function drawPreview(piece) {
+    const previewWidth = preview.width / scale;
+    const previewHeight = preview.height / scale;
+    previewContext.clearRect(0, 0, previewWidth, previewHeight);
+    const left = (previewWidth - size * piece.m[0].length) / 2;
+    const top = (previewHeight - size * piece.m.length) / 2;
+    paintPiece(previewContext, piece, left, top);
+  }
+
+  function drawBoard(board, current, flash) {
     ctx.drawImage(backdrop, 0, 0, width, height);
-    function paint(x, y, type) {
-      ctx.drawImage(tiles[type - 1], x * size, y * size, size, size);
-    }
     board.forEach((row, y) => row.forEach((type, x) => {
-      if (type) paint(x, y, type);
+      if (type) paintTile(ctx, x * size, y * size, type);
     }));
-    current?.m.forEach((row, y) => row.forEach((cell, x) => {
-      if (cell) paint(current.x + x, current.y + y, current.t);
-    }));
+    if (current) paintPiece(ctx, current, current.x * size, current.y * size);
     if (flash) {
       ctx.fillStyle = '#1b0d17e8';
       rounded(ctx, 58, 267, 184, 66, 9);
@@ -125,5 +141,7 @@ function createBoardView(canvas, onAssetsReady) {
       ctx.textBaseline = 'middle';
       ctx.fillText('乾杯!!', 150, 300);
     }
-  };
+  }
+
+  return { drawBoard, drawPreview };
 }

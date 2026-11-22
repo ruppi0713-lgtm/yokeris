@@ -4,15 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>ヨケリス</title>
-  <link rel="stylesheet" href="game.css">
-  <script src="board-view.js" defer></script>
-  <script src="scenes.js" defer></script>
-  <script src="game.js" defer></script>
+  <link rel="stylesheet" href="game.css?v=2">
+  <script src="board-view.js?v=2" defer></script>
+  <script src="scenes.js?v=2" defer></script>
+  <script src="game.js?v=2" defer></script>
 </head>
 <body>
   <main id="game" class="screen" aria-label="ヨケリスのゲーム画面" hidden>
     <header id="gameHeader">
-      <h1><img src="yokeris-logo.png" alt="ヨケリス" width="554" height="174"></h1>
+      <div class="gameBrand">
+        <h1><img src="yokeris-logo.png" alt="ヨケリス" width="554" height="174"></h1>
+        <figure id="nextDisplay">
+          <figcaption>NEXT</figcaption>
+          <canvas id="nextBlock" width="300" height="144" role="img" aria-label="次のブロック"></canvas>
+        </figure>
+      </div>
       <dl id="hud">
         <div><dt>SCORE</dt><dd id="sc">0</dd></div>
         <div><dt>LINE</dt><dd id="ln">0</dd></div>
@@ -48,12 +54,13 @@
         <button class="right" data-k="right" aria-label="右へ">→</button>
         <button class="down" data-k="down" aria-label="落下">↓</button>
       </div>
-      <p class="keyHelp">← → 移動　↑ / Space 回転　↓ 落下</p>
+      <p class="keyHelp">← → 移動　↑ / Space 回転　↓ 長押しで一気に落下</p>
     </footer>
   </main>
 
   <section id="opening" class="screen" data-stage="gate" aria-label="オープニングとタイトル">
     <video id="stageVideo" poster="opening-poster.jpg" playsinline webkit-playsinline preload="metadata" aria-hidden="true"></video>
+    <video id="menuVideo" muted playsinline webkit-playsinline preload="none" aria-hidden="true"></video>
     <div id="stageDim"></div>
     <img id="movieLogo" src="yokeris-logo.png" alt="" width="554" height="174" hidden>
     <button id="opGate" class="pixelButton">▶ 音ありでオープニングを見る</button>
@@ -69,7 +76,7 @@
         </div>
         <div class="panel" id="howPanel" hidden>
           <p>落ちてくる酒ブロックを横一列にそろえると「乾杯!!」</p>
-          <p>← → で移動、↑ / Space で回転、↓ で速く落とせます。</p>
+          <p>← → で移動、↑ / Space で回転。↓ は短く押すと1マス、長押しで着地位置まで落とせます。</p>
           <p>スマホでは右下の十字キーか、盤面のスワイプとタップで操作できます。</p>
           <p>天井まで積むとゲームオーバー。よっけの実写演出が流れます。</p>
         </div>
@@ -94,8 +101,11 @@
   </section>
 
   <section id="over" class="screen" data-stage="movie" aria-label="ゲームオーバー" hidden>
-    <video id="overVideo" src="yokke-gameover.mp4" preload="none" muted playsinline webkit-playsinline aria-label="よっけのゲームオーバー動画" hidden></video>
-    <button id="overSkip" class="sceneButton">結果を見る ≫</button>
+    <video id="overVideo" src="yokke-gameover-inline.mp4" poster="yokke-gameover-poster.jpg" preload="none" muted playsinline webkit-playsinline aria-label="よっけのゲームオーバー動画" hidden></video>
+    <div id="overActions">
+      <button id="overPlay" class="pixelButton" hidden>▶ 動画を再生</button>
+      <button id="overSkip" class="sceneButton">結果を見る ≫</button>
+    </div>
     <div id="overResult" hidden>
       <h1 id="overTitle">GAME OVER</h1>
       <p id="overScore"></p>

@@ -7,19 +7,25 @@
     [[0, 1, 1], [1, 1, 0]], [[1, 1, 0], [0, 1, 1]],
     [[1, 0, 0], [1, 1, 1]], [[0, 0, 1], [1, 1, 1]],
   ];
-  const keys = { ArrowLeft: 'left', ArrowRight: 'right', ArrowDown: 'down', ArrowUp: 'rot', ' ': 'rot' };
+  const drinkNames = ['ワイン', '樽', '日本酒', 'ウイスキー', '生ビール', '缶ビール', 'サワー'];
+  const keys = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rot', ' ': 'rot' };
   const canvas = byId('cv');
+  const preview = byId('nextBlock');
   const emptyRow = () => Array(width).fill(0);
   let board = Array.from({ length: height }, emptyRow);
-  let current;
+  let current, next;
   let score, lines, level, baseLevel;
-  let fallTimer, flashTimer;
+  let fallTimer, flashTimer, dropTimer;
+  let dropInput;
   let running = false;
   let flash = false;
   let animationFrame;
   let visiblePiece;
 
-  const drawBoard = createBoardView(canvas, draw);
+  const { drawBoard, drawPreview } = createBoardView(canvas, preview, () => {
+    draw();
+    if (next) drawPreview(next);
+  });
   const scenes = createScenes(startGame);
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -55,16 +61,25 @@
     }));
   }
 
-  function spawn() {
+  function randomPiece() {
     const type = Math.floor(Math.random() * shapes.length);
-    current = { m: shapes[type], x: 3, y: 0, t: type + 1 };
+    return { m: shapes[type], x: 3, y: 0, t: type + 1 };
+  }
+
+  function spawn() {
+    stopDrop();
+    current = next;
+    next = randomPiece();
     if (blocked(0, 0)) {
       running = false;
       flash = false;
       clearInterval(fallTimer);
       clearTimeout(flashTimer);
       scenes.showGameOver(score, lines);
+      return;
     }
+    preview.setAttribute('aria-label', '次のブロック ' + drinkNames[next.t - 1]);
+    drawPreview(next);
   }
 
   function scheduleFall() {
@@ -127,10 +142,31 @@
     running = true;
     byId('msg').textContent = '積みすぎると、よっけがトイレに…';
     updateHud();
+    next = randomPiece();
     spawn();
     draw();
     scheduleFall();
     canvas.focus({ preventScroll: true });
+  }
+
+  function stopDrop(source = dropInput) {
+    if (dropInput !== source) return;
+    clearTimeout(dropTimer);
+    dropInput = undefined;
+  }
+
+  function beginDrop(source) {
+    if (!running || dropInput !== undefined) return;
+    const piece = current;
+    dropInput = source;
+    step();
+    if (!running || current !== piece) return;
+    dropTimer = setTimeout(() => {
+      while (!blocked(0, 1)) current.y++;
+      land();
+      if (running) scheduleFall();
+      draw();
+    }, 190);
   }
 
   function move(action) {
@@ -149,14 +185,41 @@
     draw();
   }
 
-  document.querySelectorAll('[data-k]').forEach(button => {
+  document.querySelectorAll('[data-k]:not([data-k="down"])').forEach(button => {
     button.addEventListener('click', () => move(button.dataset.k));
   });
+  document.querySelectorAll('[data-k="down"]').forEach(button => {
+    button.addEventListener('pointerdown', event => {
+      if (!running || event.button !== 0) return;
+      button.setPointerCapture(event.pointerId);
+      beginDrop(event.pointerId);
+    });
+    for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+      button.addEventListener(name, event => stopDrop(event.pointerId));
+    }
+    button.addEventListener('click', event => {
+      if (event.detail === 0) move('down');
+    });
+    button.addEventListener('contextmenu', event => event.preventDefault());
+  });
   document.addEventListener('keydown', event => {
-    if (!running || !Object.hasOwn(keys, event.key)) return;
+    if (!running) return;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (!event.repeat) beginDrop('keyboard');
+      return;
+    }
+    if (!Object.hasOwn(keys, event.key)) return;
     if (event.key === ' ' && event.target instanceof HTMLButtonElement) return;
     event.preventDefault();
     move(keys[event.key]);
+  });
+  document.addEventListener('keyup', event => {
+    if (event.key === 'ArrowDown') stopDrop('keyboard');
+  });
+  window.addEventListener('blur', () => stopDrop());
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopDrop();
   });
 
   let gesture;

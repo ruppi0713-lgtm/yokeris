@@ -99,7 +99,6 @@ function createSound() {
 
   return {
     play, stop, retry,
-    usesContext: () => Boolean(context),
     prepare: () => {
       if (context) for (const name of Object.keys(tracks)) load(name);
     },
@@ -119,6 +118,7 @@ function createScenes(startGame) {
   const game = byId('game');
   const opening = byId('opening');
   const stageVideo = byId('stageVideo');
+  const menuVideo = byId('menuVideo');
   const gate = byId('opGate');
   const skip = byId('opSkip');
   const movieLogo = byId('movieLogo');
@@ -129,6 +129,8 @@ function createScenes(startGame) {
   const bgm = byId('setBgm');
   const over = byId('over');
   const overVideo = byId('overVideo');
+  const overActions = byId('overActions');
+  const overPlay = byId('overPlay');
   const overSkip = byId('overSkip');
   const result = byId('overResult');
   const again = byId('again');
@@ -138,37 +140,44 @@ function createScenes(startGame) {
   let backdropErrors = 0;
   let openingAttempt = 0;
   let resultAttempt = 0;
+  let playbackAttempt = 0;
   let stallTimer;
-  let movieTimer;
   let finishMovie;
+  let beginOverMovie;
+  let offerOverMovie;
   let volume = .70;
 
   function applyVolume() {
     const percent = Number(byId('setVol').value);
     volume = percent / 100;
     sound.setVolume(volume);
-    stageVideo.volume = overVideo.volume = .9 * volume;
+    stageVideo.volume = .9 * volume;
     byId('volVal').textContent = percent + '%';
   }
 
   function chooseOpening() {
     if (opening.dataset.stage !== 'gate') return;
     opening.dataset.portrait = portraitQuery.matches;
-    stageVideo.src = portraitQuery.matches ? 'yokke-opening-sp.mp4' : 'yokke-opening.mp4';
+    stageVideo.src = portraitQuery.matches ? 'yokke-opening-sp.mp4?v=2' : 'yokke-opening.mp4?v=2';
+  }
+
+  function prepareBackdrop() {
+    menuVideo.preload = 'auto';
+    if (menuVideo.getAttribute('src') !== backdrops[backdrop]) menuVideo.src = backdrops[backdrop];
   }
 
   function playBackdrop() {
-    stageVideo.src = backdrops[backdrop];
-    stageVideo.play().catch(() => {});
+    prepareBackdrop();
+    menuVideo.play().catch(() => {});
   }
 
   function showMenu() {
     if (opening.dataset.stage === 'menu') return;
     openingAttempt++;
     opening.dataset.stage = 'menu';
-    gate.hidden = skip.hidden = movieLogo.hidden = true;
+    gate.hidden = skip.hidden = true;
     menu.hidden = false;
-    stageVideo.muted = true;
+    stageVideo.pause();
     playBackdrop();
     if (bgm.checked) sound.play('title', { loop: true });
     start.focus({ preventScroll: true });
@@ -191,26 +200,33 @@ function createScenes(startGame) {
       if (openingAttempt === attempt) showOpeningRetry();
     });
     skip.focus({ preventScroll: true });
+    prepareBackdrop();
     sound.prepare();
   });
   skip.addEventListener('click', showMenu);
   stageVideo.addEventListener('timeupdate', () => {
-    movieLogo.hidden = opening.dataset.stage !== 'movie' || opening.dataset.portrait !== 'true'
-      || stageVideo.currentTime < 3.65;
+    if (opening.dataset.stage === 'movie') {
+      movieLogo.hidden = opening.dataset.portrait !== 'true' || stageVideo.currentTime < 3.65;
+    }
   });
   stageVideo.addEventListener('ended', () => {
-    if (opening.dataset.stage === 'movie') {
-      showMenu();
-    } else if (opening.dataset.stage === 'menu') {
+    if (opening.dataset.stage === 'movie') showMenu();
+  });
+  stageVideo.addEventListener('error', () => {
+    if (opening.dataset.stage === 'movie') showOpeningRetry();
+  });
+  menuVideo.addEventListener('playing', () => {
+    opening.dataset.menuVideo = 'playing';
+  });
+  menuVideo.addEventListener('ended', () => {
+    if (opening.dataset.stage === 'menu' && !opening.hidden) {
       backdropErrors = 0;
       backdrop = (backdrop + 1) % backdrops.length;
       playBackdrop();
     }
   });
-  stageVideo.addEventListener('error', () => {
-    if (opening.dataset.stage === 'movie') {
-      showOpeningRetry();
-    } else if (opening.dataset.stage === 'menu' && ++backdropErrors < backdrops.length) {
+  menuVideo.addEventListener('error', () => {
+    if (opening.dataset.stage === 'menu' && !opening.hidden && ++backdropErrors < backdrops.length) {
       backdrop = (backdrop + 1) % backdrops.length;
       playBackdrop();
     }
@@ -238,11 +254,12 @@ function createScenes(startGame) {
   function startRound() {
     resultAttempt++;
     clearTimeout(stallTimer);
-    clearTimeout(movieTimer);
-    finishMovie = null;
+    finishMovie = beginOverMovie = offerOverMovie = null;
     overVideo.pause();
+    if (byId('setVideo').checked) overVideo.preload = 'auto';
     for (const name of ['title', 'tension', 'sad', 'movie']) sound.stop(name);
     stageVideo.pause();
+    menuVideo.pause();
     opening.hidden = over.hidden = true;
     game.hidden = false;
     sound.retry();
@@ -257,18 +274,19 @@ function createScenes(startGame) {
     result.hidden = true;
     overVideo.hidden = true;
     over.dataset.stage = 'movie';
-    overSkip.hidden = false;
+    overActions.hidden = false;
+    overPlay.hidden = true;
     sound.stop('game');
     if (bgm.checked) sound.play('tension');
 
+    const stillOnMovie = () => resultAttempt === attempt && over.dataset.stage === 'movie';
     finishMovie = (keepFrame = false) => {
-      if (resultAttempt !== attempt || over.dataset.stage !== 'movie') return;
+      if (!stillOnMovie()) return;
       clearTimeout(stallTimer);
-      clearTimeout(movieTimer);
       over.dataset.stage = 'result';
       overVideo.pause();
       overVideo.hidden = !keepFrame;
-      overSkip.hidden = true;
+      overActions.hidden = true;
       byId('overScore').textContent = 'SCORE ' + score + ' / LINE ' + lines + '｜飲みすぎ注意！';
       result.hidden = false;
       sound.stop('tension');
@@ -281,37 +299,49 @@ function createScenes(startGame) {
       finishMovie();
       return;
     }
-    overVideo.muted = sound.usesContext() || volume === 0;
-    overVideo.currentTime = 0;
+    offerOverMovie = () => {
+      if (!stillOnMovie()) return;
+      playbackAttempt++;
+      clearTimeout(stallTimer);
+      overVideo.pause();
+      sound.stop('movie');
+      sound.stop('tension');
+      overPlay.hidden = false;
+      overPlay.focus({ preventScroll: true });
+    };
+    beginOverMovie = () => {
+      if (!stillOnMovie()) return;
+      const playback = ++playbackAttempt;
+      if (overVideo.error) overVideo.load();
+      overPlay.hidden = true;
+      overSkip.focus({ preventScroll: true });
+      clearTimeout(stallTimer);
+      stallTimer = setTimeout(offerOverMovie, 6500);
+      overVideo.play().catch(() => {
+        if (playbackAttempt === playback) offerOverMovie?.();
+      });
+    };
+
+    overVideo.defaultMuted = overVideo.muted = true;
+    if (overVideo.readyState > 0) overVideo.currentTime = 0;
     overVideo.hidden = false;
-    overSkip.focus({ preventScroll: true });
-    stallTimer = setTimeout(() => finishMovie?.(), 6500);
-    movieTimer = setTimeout(() => finishMovie?.(), 18000);
-    overVideo.play().catch(() => {
-      if (resultAttempt !== attempt || over.dataset.stage !== 'movie') return;
-      if (overVideo.muted) finishMovie();
-      else {
-        overVideo.muted = true;
-        overVideo.play().catch(() => {
-          if (resultAttempt === attempt) finishMovie?.();
-        });
-      }
-    });
+    requestAnimationFrame(beginOverMovie);
   }
 
   overVideo.addEventListener('playing', () => {
     if (over.hidden || over.dataset.stage !== 'movie') return;
     clearTimeout(stallTimer);
-    if (sound.usesContext()) sound.play('movie', { position: () => overVideo.currentTime });
+    sound.play('movie', { position: () => overVideo.currentTime });
   });
   overVideo.addEventListener('waiting', () => {
     if (over.hidden || over.dataset.stage !== 'movie') return;
     clearTimeout(stallTimer);
     sound.stop('movie');
-    stallTimer = setTimeout(() => finishMovie?.(), 6500);
+    stallTimer = setTimeout(() => offerOverMovie?.(), 6500);
   });
   overVideo.addEventListener('ended', () => finishMovie?.(true));
-  overVideo.addEventListener('error', () => finishMovie?.());
+  overVideo.addEventListener('error', () => offerOverMovie?.());
+  overPlay.addEventListener('click', () => beginOverMovie?.());
   overSkip.addEventListener('click', () => finishMovie?.());
   start.addEventListener('click', startRound);
   again.addEventListener('click', startRound);
