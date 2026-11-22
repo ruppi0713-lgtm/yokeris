@@ -11,6 +11,22 @@
   body.playing{position:fixed;inset:0;width:100%;overflow:hidden}
   h2.logo{font-family:"Courier New",monospace;font-weight:bold;color:#facc15;text-shadow:3px 3px 0 #b45309,6px 6px 0 rgba(0,0,0,.55);letter-spacing:10px;font-size:34px;margin:8px 0 2px}
   #overVideo{opacity:0;transition:opacity .3s}
+  #dpad{display:none}
+  @media (max-width:640px){
+    body{padding:10px 6px;overflow-x:hidden}
+    .spacerL{display:none}
+    #cv{width:min(74vw,30vh)!important;height:auto!important;aspect-ratio:1/2}
+    #hud{font-size:13px;line-height:1.9}
+    .tagline{font-size:12.5px;padding:0 8px}
+    .pad{display:none}
+    #dpad{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,52px);gap:6px;justify-content:center;margin-top:12px}
+    #dpad button{background:#333;color:#fff;border-radius:12px;padding:0;font-size:19px;touch-action:none}
+    #dpad .up{grid-column:2;grid-row:1}
+    #dpad .left{grid-column:1;grid-row:2}
+    #dpad .right{grid-column:3;grid-row:2}
+    #dpad .down{grid-column:2;grid-row:3}
+    #dpad .mid{grid-column:2;grid-row:2;background:#222}
+  }
   canvas{background:#211910;border:4px solid #111;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
   button{background:#f59e0b;color:#111;border:none;padding:10px 22px;border-radius:999px;font-weight:bold;cursor:pointer;font-size:15px}
   .pad{display:grid;grid-template-columns:repeat(4,70px);gap:6px;justify-content:center;margin-top:10px}
@@ -89,10 +105,10 @@
 </div>
 
 <h2 class="logo">ヨケリス</h2>
-<div>酒ブロック積み上げ消し｜1列消すと「乾杯!!」／積みすぎると…よっけ登場</div>
-<p>SCORE <b id="sc">0</b>　LINE <b id="ln">0</b>　LV <b id="lv">1</b>　満腹まであと <b id="left" style="color:#fca5a5">20</b> マス</p>
+<div class="tagline">酒ブロック積み上げ消し｜1列消すと「乾杯!!」／積みすぎると…よっけ登場</div>
+<p id="hud">SCORE <b id="sc">0</b>　LINE <b id="ln">0</b>　LV <b id="lv">1</b>　満腹まであと <b id="left" style="color:#fca5a5">20</b> マス</p>
 <div style="display:flex;gap:10px;justify-content:center;align-items:stretch">
-<div style="width:54px;flex:none"></div>
+<div class="spacerL" style="width:54px;flex:none"></div>
 <canvas id="cv" width="300" height="600" style="width:300px;height:600px;max-width:80vw"></canvas>
 <div style="display:flex;flex-direction:column;align-items:center;width:44px">
   <div style="font-size:11px;writing-mode:vertical-rl;letter-spacing:2px;color:#fca5a5">胃残量</div>
@@ -107,6 +123,13 @@
 <button id="start">▶ START</button>
 <div class="pad">
   <button data-k="left">←</button><button data-k="rot">回転</button><button data-k="right">→</button><button data-k="down">↓落下</button>
+</div>
+<div id="dpad">
+  <button class="up" data-k="rot">⟳</button>
+  <button class="left" data-k="left">←</button>
+  <div class="mid"></div>
+  <button class="right" data-k="right">→</button>
+  <button class="down" data-k="down">↓</button>
 </div>
 <p style="font-size:12px;color:#aaa">PC: ←→↓ / ↑・Space=回転</p>
 
@@ -198,7 +221,7 @@ function gameOver(){
 function startGame(){board=empty();score=0;lines=0;level=baseLevel=parseInt(document.getElementById('setLevel').value||'1');dropMs=Math.max(120,800-(level-1)*70);running=true;document.body.classList.add('playing');if(document.activeElement)document.activeElement.blur();window.scrollTo(0,0);document.getElementById('titleBgm').pause();playBgm();document.getElementById('over').style.display='none';document.getElementById('opening').style.display='none';const sv=document.getElementById('stageVideo');if(sv)sv.pause();document.getElementById('msg').textContent='積みすぎると、よっけがトイレに…';upd();spawn();draw();restart()}
 document.getElementById('start').onclick=startGame;
 document.getElementById('opStart').onclick=startGame;
-(function(){const v=document.getElementById('stageVideo'),gate=document.getElementById('opGate'),skip=document.getElementById('opSkip'),menu=document.getElementById('menuPanel'),dim=document.getElementById('stageDim');const bgList=['yokke-title-bg.mp4','yokke-title-bg2.mp4','yokke-title-bg3.mp4','yokke-title-bg4.mp4'];let bgIdx=0,menuMode=false;function toMenu(){skip.style.display='none';menuMode=true;v.muted=true;v.loop=false;v.style.objectFit='contain';bgIdx=0;v.src=bgList[0];v.currentTime=0;v.play().catch(()=>{});dim.style.display='block';menu.style.display='block'}function advanceBg(){bgIdx=(bgIdx+1)%bgList.length;v.src=bgList[bgIdx];v.currentTime=0;v.play().catch(()=>{})}
+(function(){const v=document.getElementById('stageVideo'),gate=document.getElementById('opGate'),skip=document.getElementById('opSkip'),menu=document.getElementById('menuPanel'),dim=document.getElementById('stageDim');const bgList=['yokke-title-bg.mp4','yokke-title-bg2.mp4','yokke-title-bg3.mp4','yokke-title-bg4.mp4'];let bgIdx=0,menuMode=false;function toMenu(){skip.style.display='none';menuMode=true;const tb2=document.getElementById('titleBgm');if(document.getElementById('setBgm').checked&&tb2.paused)tb2.play().catch(()=>{});v.muted=true;v.loop=false;v.style.objectFit='contain';bgIdx=0;v.src=bgList[0];v.currentTime=0;v.play().catch(()=>{});dim.style.display='block';menu.style.display='block'}function advanceBg(){bgIdx=(bgIdx+1)%bgList.length;v.src=bgList[bgIdx];v.currentTime=0;v.play().catch(()=>{})}
 v.onended=()=>{if(menuMode)advanceBg();else toMenu()};
 v.onerror=()=>{if(menuMode)advanceBg()};
 setInterval(()=>{if(menuMode&&(v.ended||(v.paused&&v.readyState>=2)))advanceBg()},1500);skip.onclick=toMenu;gate.onclick=()=>{gate.style.display='none';skip.style.display='block';const tb=document.getElementById('titleBgm');applyVol();if(document.getElementById('setBgm').checked)tb.play().catch(()=>{});v.muted=false;v.currentTime=0;v.load();v.play().catch(()=>{v.muted=true;v.play().catch(()=>{})})}})();
@@ -207,7 +230,9 @@ document.getElementById('opSet').onclick=()=>{document.getElementById('setPanel'
 document.getElementById('setBack').onclick=()=>{document.getElementById('setPanel').style.display='none'};
 document.getElementById('again').onclick=startGame;
 function move(k){if(!running)return;if(k==='left'&&!hit(cur,-1,0))cur.x--;if(k==='right'&&!hit(cur,1,0))cur.x++;if(k==='down')step();if(k==='rot'){const nm=cur.m[0].map((_,i)=>cur.m.map(r=>r[i]).reverse());if(!hit(cur,0,0,nm))cur.m=nm}draw()}
-document.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>move(b.dataset.k));
+document.querySelectorAll('[data-k]').forEach(b=>{b.onclick=()=>move(b.dataset.k);b.addEventListener('touchstart',e=>{e.preventDefault();move(b.dataset.k)},{passive:false})});
+// スマホで音が止まっていたら、触れたタイミングで再生し直す
+document.addEventListener('touchend',()=>{if(!document.getElementById('setBgm').checked)return;const tb=document.getElementById('titleBgm');if(running){if(bgm.paused)bgm.play().catch(()=>{})}else if(document.getElementById('opening').style.display!=='none'&&tb.paused){tb.play().catch(()=>{})}});
 document.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowDown','ArrowUp',' '].includes(e.key)){e.preventDefault();if(e.key==='ArrowLeft')move('left');if(e.key==='ArrowRight')move('right');if(e.key==='ArrowDown')move('down');if(e.key==='ArrowUp'||e.key===' ')move('rot')}});
 // スワイプ操作：画面がスクロール・揺れしないよう固定し、スワイプでブロックを動かす
 (function(){let sx=0,sy=0,lx=0;const el=document.getElementById('cv');
