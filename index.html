@@ -8,6 +8,9 @@
   html,body{overscroll-behavior:none}
   body{font-family:sans-serif;background:#171008;color:#fff;text-align:center;margin:0;padding:16px;touch-action:none;-webkit-user-select:none;user-select:none}
   canvas{touch-action:none}
+  body.playing{position:fixed;inset:0;width:100%;overflow:hidden}
+  h2.logo{font-family:"Courier New",monospace;font-weight:bold;color:#facc15;text-shadow:3px 3px 0 #b45309,6px 6px 0 rgba(0,0,0,.55);letter-spacing:10px;font-size:34px;margin:8px 0 2px}
+  #overVideo{opacity:0;transition:opacity .3s}
   canvas{background:#211910;border:4px solid #111;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
   button{background:#f59e0b;color:#111;border:none;padding:10px 22px;border-radius:999px;font-weight:bold;cursor:pointer;font-size:15px}
   .pad{display:grid;grid-template-columns:repeat(4,70px);gap:6px;justify-content:center;margin-top:10px}
@@ -44,6 +47,7 @@
 <div id="opening">
   <video id="stageVideo" src="yokke-opening.mp4" playsinline preload="auto"></video>
   <video id="bgPreload" src="yokke-title-bg.mp4" preload="auto" muted style="display:none"></video>
+  <video src="yokke-title-bg2.mp4" preload="auto" muted style="display:none"></video>
   <video src="yokke-title-bg3.mp4" preload="auto" muted style="display:none"></video>
   <video src="yokke-title-bg4.mp4" preload="auto" muted style="display:none"></video>
   <div id="stageDim"></div>
@@ -84,10 +88,11 @@
   <button id="opSkip" style="display:none">スキップ ≫</button>
 </div>
 
-<h2>ヨケリス</h2>
+<h2 class="logo">ヨケリス</h2>
 <div>酒ブロック積み上げ消し｜1列消すと「乾杯!!」／積みすぎると…よっけ登場</div>
 <p>SCORE <b id="sc">0</b>　LINE <b id="ln">0</b>　LV <b id="lv">1</b>　満腹まであと <b id="left" style="color:#fca5a5">20</b> マス</p>
 <div style="display:flex;gap:10px;justify-content:center;align-items:stretch">
+<div style="width:54px;flex:none"></div>
 <canvas id="cv" width="300" height="600" style="width:300px;height:600px;max-width:80vw"></canvas>
 <div style="display:flex;flex-direction:column;align-items:center;width:44px">
   <div style="font-size:11px;writing-mode:vertical-rl;letter-spacing:2px;color:#fca5a5">胃残量</div>
@@ -164,6 +169,7 @@ function draw(){
  if(Date.now()<flashUntil){ctx.fillStyle='#facc15';ctx.font='bold 34px sans-serif';ctx.textAlign='center';ctx.fillText('乾杯!!',150,300)}}
 function gameOver(){
   running=false;clearInterval(timer);draw();
+  document.body.classList.remove('playing');
   bgm.pause();
   const goBgm=document.getElementById('goBgm');applyVol();goBgm.currentTime=0;goBgm.play().catch(()=>{});
   document.getElementById('msg').textContent='飲みすぎた…！';
@@ -175,6 +181,8 @@ function gameOver(){
   document.getElementById('overTitle').style.display='none';
   document.getElementById('overScore').style.display='none';
   document.getElementById('again').style.display='none';
+  vid.style.opacity=0;
+  vid.onplaying=()=>{vid.style.opacity=1};
   vid.currentTime=0;
   vid.play().catch(()=>{showEnd()});
   vid.onended=showEnd;
@@ -187,10 +195,13 @@ function gameOver(){
     document.getElementById('again').style.display='inline-block';
   }
 }
-function startGame(){board=empty();score=0;lines=0;level=baseLevel=parseInt(document.getElementById('setLevel').value||'1');dropMs=Math.max(120,800-(level-1)*70);running=true;document.getElementById('titleBgm').pause();playBgm();document.getElementById('over').style.display='none';document.getElementById('opening').style.display='none';const sv=document.getElementById('stageVideo');if(sv)sv.pause();document.getElementById('msg').textContent='積みすぎると、よっけがトイレに…';upd();spawn();draw();restart()}
+function startGame(){board=empty();score=0;lines=0;level=baseLevel=parseInt(document.getElementById('setLevel').value||'1');dropMs=Math.max(120,800-(level-1)*70);running=true;document.body.classList.add('playing');if(document.activeElement)document.activeElement.blur();window.scrollTo(0,0);document.getElementById('titleBgm').pause();playBgm();document.getElementById('over').style.display='none';document.getElementById('opening').style.display='none';const sv=document.getElementById('stageVideo');if(sv)sv.pause();document.getElementById('msg').textContent='積みすぎると、よっけがトイレに…';upd();spawn();draw();restart()}
 document.getElementById('start').onclick=startGame;
 document.getElementById('opStart').onclick=startGame;
-(function(){const v=document.getElementById('stageVideo'),gate=document.getElementById('opGate'),skip=document.getElementById('opSkip'),menu=document.getElementById('menuPanel'),dim=document.getElementById('stageDim');const bgList=['yokke-title-bg.mp4','yokke-title-bg3.mp4','yokke-title-bg4.mp4'];let bgIdx=0,menuMode=false;function toMenu(){skip.style.display='none';menuMode=true;v.muted=true;v.loop=false;v.style.objectFit='contain';bgIdx=0;v.src=bgList[0];v.currentTime=0;v.play().catch(()=>{});dim.style.display='block';menu.style.display='block'}v.onended=()=>{if(menuMode){bgIdx=(bgIdx+1)%bgList.length;v.src=bgList[bgIdx];v.play().catch(()=>{})}else toMenu()};skip.onclick=toMenu;gate.onclick=()=>{gate.style.display='none';skip.style.display='block';const tb=document.getElementById('titleBgm');applyVol();if(document.getElementById('setBgm').checked)tb.play().catch(()=>{});v.muted=false;v.currentTime=0;v.load();v.play().catch(()=>{v.muted=true;v.play().catch(()=>{})})}})();
+(function(){const v=document.getElementById('stageVideo'),gate=document.getElementById('opGate'),skip=document.getElementById('opSkip'),menu=document.getElementById('menuPanel'),dim=document.getElementById('stageDim');const bgList=['yokke-title-bg.mp4','yokke-title-bg2.mp4','yokke-title-bg3.mp4','yokke-title-bg4.mp4'];let bgIdx=0,menuMode=false;function toMenu(){skip.style.display='none';menuMode=true;v.muted=true;v.loop=false;v.style.objectFit='contain';bgIdx=0;v.src=bgList[0];v.currentTime=0;v.play().catch(()=>{});dim.style.display='block';menu.style.display='block'}function advanceBg(){bgIdx=(bgIdx+1)%bgList.length;v.src=bgList[bgIdx];v.currentTime=0;v.play().catch(()=>{})}
+v.onended=()=>{if(menuMode)advanceBg();else toMenu()};
+v.onerror=()=>{if(menuMode)advanceBg()};
+setInterval(()=>{if(menuMode&&(v.ended||(v.paused&&v.readyState>=2)))advanceBg()},1500);skip.onclick=toMenu;gate.onclick=()=>{gate.style.display='none';skip.style.display='block';const tb=document.getElementById('titleBgm');applyVol();if(document.getElementById('setBgm').checked)tb.play().catch(()=>{});v.muted=false;v.currentTime=0;v.load();v.play().catch(()=>{v.muted=true;v.play().catch(()=>{})})}})();
 document.getElementById('opHow').onclick=()=>{document.getElementById('howPanel').style.display='block';document.getElementById('setPanel').style.display='none'};
 document.getElementById('opSet').onclick=()=>{document.getElementById('setPanel').style.display='block';document.getElementById('howPanel').style.display='none'};
 document.getElementById('setBack').onclick=()=>{document.getElementById('setPanel').style.display='none'};
